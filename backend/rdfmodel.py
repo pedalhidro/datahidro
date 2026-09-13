@@ -70,6 +70,8 @@ def load_offices(vocab_path: str | Path) -> list[dict]:
             "iri": str(o),
             "label": str(g.value(o, SKOS.prefLabel)),
             "title": str(g.value(o, DH.deckLabel)),
+            "plural": str(g.value(o, DH.pluralLabel)),
+            "short": str(g.value(o, DH.shortLabel)),
             "tse_code": str(g.value(o, SKOS.notation)),
             "jurisdiction": str(g.value(o, DH.jurisdiction)),
             "max": int(g.value(o, DH.maxChoices)),

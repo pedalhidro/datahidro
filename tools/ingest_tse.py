@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Catálogo de candidaturas do datahidro a partir dos dados abertos do TSE.
 
-  python3 tools/ingest_tse.py download   # zips do TSE → tools/_cache/tse/
+  python3 tools/ingest_tse.py download   # zips do TSE + tabela do GPS partidário → tools/_cache/
   python3 tools/ingest_tse.py build      # → data/candidates.json + .ttl + photos/<sq>.webp
 
 Fonte: https://dadosabertos.tse.jus.br/dataset/candidatos-2026
@@ -11,6 +11,11 @@ Fonte: https://dadosabertos.tse.jus.br/dataset/candidatos-2026
 O CDN do TSE (Akamai) nega acesso a IPs de datacenter/nuvem: rode `download`
 de uma conexão residencial, ou baixe na mão pela página acima e salve os zips
 em tools/_cache/tse/.
+
+Peso da ordem aleatória: media_z de cada partido no GPS Partidário 2026 da
+Folha (https://github.com/deltafolha/gps-partidario-2026, fixado em
+GPS_COMMIT). O ingest só copia a media_z pro candidates.json (`party_lean`);
+a fórmula do peso fica no app.js (partyWeigher).
 
 Filtros padrão (ver `build --help`): só as UFs/cargos do data/vocab.ttl e sem
 candidaturas INAPTAS (renúncia, indeferimento, cancelamento…) — quando o TSE já
@@ -50,6 +55,19 @@ URLS = {
         "https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes2026/fotos/foto_cand2026_BR_div.zip",
 }
 USER_AGENT = "Mozilla/5.0 (datahidro ingest; +https://pesquisa.pedalhidrografi.co)"
+
+# GPS Partidário 2026 (Folha): media_z = posição do partido na régua
+# esquerda–direita (negativo = esquerda). Commit novo → conferir as siglas abaixo.
+GPS_COMMIT = "0618f0b05b93b72c4cc37f4e91a8d88456026653"
+GPS_URL = ("https://raw.githubusercontent.com/deltafolha/gps-partidario-2026/"
+           f"{GPS_COMMIT}/tabela_final.csv")
+GPS_PAGE = f"https://github.com/deltafolha/gps-partidario-2026/blob/{GPS_COMMIT}/tabela_final.csv"
+GPS_CSV = ROOT / "tools" / "_cache" / "gps-partidario-2026" / "tabela_final.csv"
+# A tabela usa as siglas históricas (recode_siglas em codigos/00_config.R); aqui
+# voltam pra SG_PARTIDO de 2026. PMB virou Democrata (TSE, dez/2025; nº 35).
+GPS_SIGLAS = {"PC do B": "PCDOB", "PMB": "DEMOCRATA"}
+# Partido fora da tabela que herda a posição de outro (DECISÃO do Danilo, 2026-09-13).
+GPS_PROXIES = {"PCO": "PSTU"}
 
 REQUIRED_COLUMNS = {
     "SG_UF", "CD_CARGO", "SQ_CANDIDATO", "NR_CANDIDATO", "NM_URNA_CANDIDATO",
@@ -99,10 +117,9 @@ def write_atomic(path: Path, data: bytes) -> None:
 # ---------------------------------------------------------------- download
 
 def download(args) -> None:
-    CACHE_TSE.mkdir(parents=True, exist_ok=True)
     failed = []
-    for name, url in URLS.items():
-        dest = CACHE_TSE / name
+    for dest, url in [(CACHE_TSE / name, url) for name, url in URLS.items()] + [(GPS_CSV, GPS_URL)]:
+        dest.parent.mkdir(parents=True, exist_ok=True)
         if dest.exists() and not args.force:
             print(f"= {dest.relative_to(ROOT)} já existe (--force baixa de novo)")
             continue
@@ -123,19 +140,20 @@ def download(args) -> None:
                 print(f"\r  ok: {dest.relative_to(ROOT)} ({done / 1e6:.1f} MB)")
         except urllib.error.HTTPError as e:
             print(f"  FALHOU: HTTP {e.code}")
-            if e.code == 403:
+            if e.code == 403 and "tse.jus.br" in url:
                 print("  O CDN do TSE bloqueia IPs de nuvem/datacenter. Rode de uma conexão"
                       " residencial ou baixe na mão em\n  https://dadosabertos.tse.jus.br/"
                       f"dataset/candidatos-2026 e salve como {dest}")
             elif e.code == 404:
-                print("  Link mudou? Confira o nome do arquivo na página do conjunto de dados.")
-            failed.append(name)
+                print("  Link mudou? Confira o nome do arquivo na página de origem.")
+            failed.append(dest.name)
         except (urllib.error.URLError, TimeoutError) as e:
             print(f"  FALHOU: {getattr(e, 'reason', e)}")
-            failed.append(name)
+            failed.append(dest.name)
     if failed:
-        sys.exit(f"não baixou: {', '.join(failed)}. Baixe na mão em "
-                 f"https://dadosabertos.tse.jus.br/dataset/candidatos-2026 e salve em {CACHE_TSE}")
+        sys.exit(f"não baixou: {', '.join(failed)}. Baixe na mão: zips do TSE em "
+                 f"https://dadosabertos.tse.jus.br/dataset/candidatos-2026 → {CACHE_TSE}; "
+                 f"tabela do GPS em {GPS_URL} → {GPS_CSV}")
 
 
 # ---------------------------------------------------------------- build
@@ -180,6 +198,23 @@ def convert_photo(data: bytes, dest: Path, size: tuple[int, int]) -> None:
     write_atomic(dest, buf.getvalue())
 
 
+def read_party_media_z(path: Path) -> dict[str, float]:
+    """media_z do GPS partidário por SG_PARTIDO de 2026 (NA fica de fora)."""
+    with open(path, encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if not {"partido", "media_z"} <= set(reader.fieldnames or []):
+            sys.exit(f"{path}: esperava as colunas partido e media_z, veio {reader.fieldnames}")
+        scores = {}
+        for row in reader:
+            party, z = row["partido"].strip(), row["media_z"].strip()
+            if z not in ("", "NA"):
+                scores[GPS_SIGLAS.get(party, party)] = float(z)
+    for party, proxy in GPS_PROXIES.items():
+        if party not in scores and proxy in scores:
+            scores[party] = scores[proxy]
+    return scores
+
+
 def build(args) -> None:
     sys.path.insert(0, str(ROOT / "backend"))
     import rdfmodel
@@ -191,6 +226,8 @@ def build(args) -> None:
     if not zips:
         sys.exit(f"nenhum consulta_cand_*.zip em {source} (rode `download` ou tools/make_sample.py)")
     sample = (source / "SAMPLE").exists()
+    if not sample and not GPS_CSV.exists():
+        sys.exit(f"{GPS_CSV.relative_to(ROOT)} não existe (peso da ordem aleatória) — rode `download`")
     genders = None if args.genders.lower() == "todos" else {
         g.strip().upper() for g in args.genders.split(",") if g.strip()}
     excluded = {s.strip().upper() for s in args.exclude_statuses.split(",") if s.strip()}
@@ -257,6 +294,10 @@ def build(args) -> None:
             del records[sq]
             merged += 1
 
+    # ------------------------------------------------ peso do sorteio (GPS partidário)
+    gps = {} if sample else read_party_media_z(GPS_CSV)
+    media_z = {p: gps[p] for p in sorted(parties) if p in gps}
+
     # ------------------------------------------------ fotos
     with_photo = collections.Counter()
     expected = set()
@@ -318,6 +359,12 @@ def build(args) -> None:
         },
         "offices": [{**o, "total": len(candidates[o["slug"]])} for o in offices],
         "parties": dict(sorted(parties.items())),
+        **({"party_lean": {
+            "name": "GPS Partidário 2026 (Folha de S.Paulo): media_z, negativo = esquerda",
+            "url": GPS_PAGE,
+            "proxies": {p: q for p, q in GPS_PROXIES.items() if p in media_z},
+            "media_z": media_z,
+        }} if media_z else {}),
         "candidates": {
             slug: [{k: c[k] for k in app_fields if c.get(k)}
                    for _, c in sorted(records.items(), key=lambda kv: int(kv[0]))]
@@ -354,6 +401,14 @@ def build(args) -> None:
         print(f"  fora: {reason}: {n}")
     if merged:
         print(f"  duplicadas (mesmo número no mesmo cargo; ficou o registro mais recente): {merged}")
+    if gps:
+        proxies = [f"{p} = {q}" for p, q in GPS_PROXIES.items() if p in media_z]
+        print(f"  GPS partidário: media_z de {len(media_z)}/{len(parties)} partidos"
+              + (f" (substitutos: {', '.join(proxies)})" if proxies else ""))
+        if unscored := sorted(set(parties) - set(media_z)):
+            print(f"  aviso: sem posição no GPS (o app usa z = 0, a média): {', '.join(unscored)}")
+        if unused := sorted(set(gps) - set(parties)):
+            print(f"  no GPS mas sem candidatura aqui (sigla nova? ver GPS_SIGLAS): {', '.join(unused)}")
     if not status_available:
         print("  aviso: o TSE ainda não publica a situação das candidaturas (#NE) — ninguém saiu por inaptidão")
 

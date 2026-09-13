@@ -72,6 +72,7 @@
 
       <div id="intro-leaderboard" class="leaderboard" hidden>
         <h2>Quem está na frente</h2>
+        <p id="intro-votes" class="leaderboard-summary"></p>
       </div>
 
       <p id="intro-resubmit" class="notice" hidden>Você já participou por este aparelho. Pode
@@ -132,15 +133,31 @@
       <p class="hint" id="badge-save-hint" hidden>No menu que abrir, toque na opção de salvar a imagem (no iPhone,
         “Salvar Imagem”) — ela vai direto pro álbum de fotos, sem passar pelos Arquivos.</p>
 
-      <h2>Story pro Instagram</h2>
-      <p>A mesma foto, já pronta em 1080×1920 — poste direto e convide mais gente a responder.</p>
-      <div class="badge-story">
-        <canvas id="story-canvas" width="1080" height="1920" role="img"
-          aria-label="Prévia do selo em formato de Story do Instagram"></canvas>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" id="story-share" disabled hidden>Salvar no álbum</button>
-        <button type="button" class="btn btn-secondary" id="story-download" disabled>Baixar arquivo</button>
+      <h2>Stories pro Instagram</h2>
+      <p>Prontas em 1080×1920: poste direto e convide mais gente a responder.</p>
+      <div class="stories">
+        <figure class="story">
+          <div class="badge-story">
+            <canvas id="story-canvas" width="1080" height="1920" role="img"
+              aria-label="Prévia do selo em formato de Story do Instagram"></canvas>
+          </div>
+          <figcaption>Seu selo</figcaption>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="story-share" disabled hidden>Salvar no álbum</button>
+            <button type="button" class="btn btn-secondary" id="story-download" disabled>Baixar arquivo</button>
+          </div>
+        </figure>
+        <figure class="story" id="board-story" hidden>
+          <div class="badge-story">
+            <canvas id="board-story-canvas" width="1080" height="1920" role="img"
+              aria-label="Quem está na frente no datahidro 2026, em formato de Story do Instagram"></canvas>
+          </div>
+          <figcaption>Quem está na frente</figcaption>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="board-story-share" hidden>Salvar no álbum</button>
+            <button type="button" class="btn btn-secondary" id="board-story-download">Baixar arquivo</button>
+          </div>
+        </figure>
       </div>
 
       <h2>Chame mais gente</h2>

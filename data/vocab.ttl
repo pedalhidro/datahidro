@@ -61,6 +61,8 @@ dh:StateDeputy a dh:Office ;
     skos:inScheme dh:OfficeScheme ;
     skos:prefLabel "Deputada estadual"@pt ;
     dh:deckLabel "Deputadas estaduais"@pt ;
+    dh:pluralLabel "Deputadas estaduais"@pt ;
+    dh:shortLabel "dep. est."@pt ;
     skos:notation "7" ;
     dh:jurisdiction "SP" ;
     dh:slug "deputadas-estaduais" ;
@@ -71,6 +73,8 @@ dh:FederalDeputy a dh:Office ;
     skos:inScheme dh:OfficeScheme ;
     skos:prefLabel "Deputada federal"@pt ;
     dh:deckLabel "Deputadas federais"@pt ;
+    dh:pluralLabel "Deputadas federais"@pt ;
+    dh:shortLabel "dep. fed."@pt ;
     skos:notation "6" ;
     dh:jurisdiction "SP" ;
     dh:slug "deputadas-federais" ;
@@ -81,6 +85,8 @@ dh:Senator a dh:Office ;
     skos:inScheme dh:OfficeScheme ;
     skos:prefLabel "Senadora"@pt ;
     dh:deckLabel "Senadoras"@pt ;
+    dh:pluralLabel "Senadoras"@pt ;
+    dh:shortLabel "senadora"@pt ;
     skos:notation "5" ;
     dh:jurisdiction "SP" ;
     dh:slug "senadoras" ;
@@ -91,6 +97,8 @@ dh:Governor a dh:Office ;
     skos:inScheme dh:OfficeScheme ;
     skos:prefLabel "Governadora"@pt ;
     dh:deckLabel "Governadora"@pt ;
+    dh:pluralLabel "Governadoras"@pt ;
+    dh:shortLabel "governadora"@pt ;
     skos:notation "3" ;
     dh:jurisdiction "SP" ;
     dh:slug "governadora" ;
@@ -101,6 +109,8 @@ dh:President a dh:Office ;
     skos:inScheme dh:OfficeScheme ;
     skos:prefLabel "Presidenta"@pt ;
     dh:deckLabel "Presidenta"@pt ;
+    dh:pluralLabel "Presidentas"@pt ;
+    dh:shortLabel "presidenta"@pt ;
     skos:notation "1" ;
     dh:jurisdiction "BR" ;
     dh:slug "presidenta" ;
@@ -164,6 +174,8 @@ dh:registrationStatus a owl:DatatypeProperty ;
 # ---------------------------------------------------------------- anotações de cargo
 
 dh:deckLabel a owl:AnnotationProperty ; rdfs:label "título da tela"@pt .
+dh:shortLabel a owl:AnnotationProperty ; rdfs:label "rótulo curto (barra de etapas do topo)"@pt .
+dh:pluralLabel a owl:AnnotationProperty ; rdfs:label "rótulo no plural (placar: \"12 votos em presidentas\")"@pt .
 dh:jurisdiction a owl:AnnotationProperty ; rdfs:label "UF das candidaturas (SG_UF)"@pt .
 dh:slug a owl:AnnotationProperty ; rdfs:label "slug da rota no app"@pt .
 dh:deckOrder a owl:AnnotationProperty ; rdfs:label "ordem de exibição"@pt .

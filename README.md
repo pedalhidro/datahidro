@@ -10,11 +10,14 @@ Página mobile-first em **pesquisa.pedalhidrografi.co**, uma tela ("deck") por e
    3 colunas (foto, nome de urna, número, partido), com busca (nome, nome
    completo, número, partido), filtro por partido, chip **só mulheres** (vale
    pra todos os cargos e fica lembrado no aparelho) e ordem **pelas mais
-   escolhidas** (placar ao vivo) ou **aleatória**.
+   escolhidas** (placar ao vivo) ou **aleatória**, um sorteio ponderado pela
+   posição do partido (ver [Ordem aleatória](#ordem-aleatória-gps-partidário-2026)).
 7. **Revisar e enviar**: resumo + autorização. A resposta é anônima.
 8. **Obrigada + selo**: a pessoa escolhe uma foto, enquadra e baixa/compartilha
    a foto de perfil com o anel "eu participei do datahidro 2026". Tudo no
-   navegador: a foto não sobe pro servidor.
+   navegador: a foto não sobe pro servidor. Ao lado do Story do selo, um
+   segundo Story com o placar ("Quem está na frente": totais + top 5 de cada
+   cargo), pra divulgar o andamento do levantamento.
 
 ## Arquitetura
 
@@ -42,7 +45,7 @@ IRIs: vocab `https://id.pedalhidrografi.co/datahidro/terms#`, candidaturas
 
 ```sh
 pip install rdflib pillow
-python3 tools/ingest_tse.py download   # de conexão residencial: o CDN do TSE bloqueia IPs de nuvem
+python3 tools/ingest_tse.py download   # TSE + GPS partidário (de conexão residencial: o CDN do TSE bloqueia IPs de nuvem)
 python3 tools/ingest_tse.py build      # todas as candidaturas dos 5 cargos
 ```
 
@@ -66,6 +69,22 @@ tools/ingest_tse.py build --source tools/_cache/sample` gera um catálogo
 `deploy.sh` se recusa a publicar.
 
 Ícones e `og.png`: `python3 tools/make_icons.py`.
+
+### Ordem aleatória: GPS Partidário 2026
+
+A ordem aleatória é um sorteio ponderado por partido, refeito a cada
+carregamento da página: peso `1 + (z − z_max)²`, em que `z` é a `media_z` do partido no
+[GPS Partidário 2026](https://github.com/deltafolha/gps-partidario-2026) da
+Folha de S.Paulo (régua esquerda–direita, negativo = esquerda) e `z_max` é a
+maior entre os partidos do catálogo. O partido mais à direita pesa 1 (NOVO) e o
+peso cresce com o quadrado da distância até ele (PSTU ~17). O PCO, fora da
+tabela, herda a posição do PSTU.
+
+O `download` baixa a `tabela_final.csv` fixada num commit (`GPS_COMMIT` no
+ingest); o `build` traduz as siglas históricas da tabela (`GPS_SIGLAS`),
+aplica os substitutos (`GPS_PROXIES`) e grava só a `media_z` no
+`candidates.json` (`party_lean`); a fórmula fica no `app.js` (`partyWeigher`).
+Na ordem por votos, o empate desempata por esse sorteio.
 
 ## Rodando local
 
@@ -137,4 +156,6 @@ Testar o Worker local, contra o backend local:
 
 ## Licença
 
-AGPL-3.0 (`LICENSE`). Dados de candidaturas: TSE, dados abertos.
+AGPL-3.0 (`LICENSE`). Dados de candidaturas: TSE, dados abertos. Posição dos
+partidos (peso do sorteio): GPS Partidário 2026, Folha de S.Paulo
+(`deltafolha/gps-partidario-2026`).

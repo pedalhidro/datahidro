@@ -31720,7 +31720,7 @@ cand:280002553884 a dh:Candidacy ;
     schema:name "Pablo Marçal" .
 
 <https://id.pedalhidrografi.co/datahidro/candidaturas/2026> a schema:Dataset ;
-    dcterms:created "2026-09-13T02:11:26+00:00"^^xsd:dateTime ;
+    dcterms:created "2026-09-13T15:47:46+00:00"^^xsd:dateTime ;
     prov:wasDerivedFrom <https://dadosabertos.tse.jus.br/dataset/candidatos-2026> ;
     schema:name "Candidaturas do datahidro 2026"@pt .
 

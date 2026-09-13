@@ -51,10 +51,22 @@ aqui. Este arquivo guarda só os invariantes deste repo.
 - **Catálogo de exemplo** (`tools/make_sample.py`) é fictício, temático e
   marcado `"sample": true`; o app mostra faixa de aviso e o `deploy.sh`
   recusa. Nunca publicar; nunca inventar candidatura com nome real.
-- **Neutralidade**: ordem aleatória por semente do aparelho; ✓ na marcação
-  (não posição); a ordem de marcação não é registrada. Na ordem por votos, o
-  empate desempata pelo sorteio.
-- **Selo**: tudo no canvas, a foto não sobe. A CSP (`backend/main.py`) barra
+- **Ordem aleatória ponderada: DECISÃO do Danilo (2026-09-13).** Sorteio sem
+  reposição (`weightedShuffle`), com semente nova a cada carregamento da página
+  (recarregar sorteia outra ordem, pedido do Danilo; nada no localStorage) e peso por partido
+  `1 + (z − z_max)²` (`partyWeigher`, só no `app.js`): z = `media_z` do GPS
+  Partidário 2026 da Folha (negativo = esquerda), z_max = a maior do catálogo
+  → NOVO pesa 1, PSTU ~17. O ingest baixa a tabela fixada em `GPS_COMMIT`,
+  traduz siglas (`GPS_SIGLAS`: PC do B → PCDOB, PMB → DEMOCRATA), aplica
+  substitutos (`GPS_PROXIES`: PCO = PSTU, pedido do Danilo) e grava só a
+  `media_z` em `candidates.json` (`party_lean`). Commit novo do GPS → conferir
+  o resumo do ingest (partido sem posição, sigla sobrando). O resto da
+  neutralidade vale: ✓ na marcação (não posição); a ordem de marcação não é
+  registrada; na ordem por votos, o empate desempata pelo sorteio.
+- **Selo**: tudo no canvas, a foto não sobe. O Story do placar
+  (`drawBoardStory`) desenha as fotos de `photos/`: mesmo domínio, então o
+  canvas segue exportável — foto servida de outro domínio sem CORS "suja" o
+  canvas e quebra o salvar. A CSP (`backend/main.py`) barra
   `style=""` inline e scripts externos: cor dinâmica via `style.setProperty`.
   `drawBadgeArt(ctx, size)` desenha o anel em qualquer tamanho; o selo
   quadrado e o Story (1080×1920, `drawStoryBadge`) chamam a mesma função —

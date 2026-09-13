@@ -12,9 +12,9 @@
  * desenhado no canvas: a foto nunca sai do aparelho.
  *
  * Ordem dos cards: pelas mais escolhidas (placar ao vivo de /api/tally, só
- * totais anônimos) ou sorteada por aparelho (semente fixa, pra não embaralhar
- * a cada visita; tocar de novo sorteia outra). A marcação mostra ✓, não
- * posição — a ordem em que alguém marca não é registrada.
+ * totais anônimos) ou sorteio ponderado pelo partido (GPS Partidário; semente
+ * nova a cada carregamento; tocar de novo sorteia outra). A marcação mostra ✓,
+ * não posição — a ordem em que alguém marca não é registrada.
  */
 
 // ===================== constantes =====================
@@ -23,7 +23,6 @@ const CONSENT_VERSION = '2026-09-v2'; // v2: resposta anônima (sem nome/contato
 const STORAGE_KEYS = {
   draft: 'datahidro:draft:v1',
   sent: 'datahidro:sent:v1',
-  seed: 'datahidro:seed:v1',
   womenOnly: 'datahidro:women-only:v1',
 };
 // cmocean.phase (mesmas âncoras do style.css e do cameratopo/render.py)
@@ -110,31 +109,48 @@ function newId() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-function deviceSeed() {
-  let seed = load(STORAGE_KEYS.seed);
-  if (!Number.isInteger(seed)) {
-    seed = crypto.getRandomValues(new Uint32Array(1))[0];
-    save(STORAGE_KEYS.seed, seed);
-  }
-  return seed;
+// Semente do sorteio: nova a cada carregamento da página (DECISÃO do Danilo,
+// 2026-09-13) — recarregar sorteia outra ordem; durante a visita ela fica parada.
+function randomSeed() {
+  return crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
-// Fisher–Yates com mulberry32: mesma semente → mesma ordem.
-function shuffle(list, seed) {
+// mulberry32: mesma semente → mesma sequência.
+function seededRandom(seed) {
   let a = seed >>> 0;
-  const rand = () => {
+  return () => {
     a = (a + 0x6d2b79f5) >>> 0;
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const out = list.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
+}
+
+// Sorteio ponderado sem reposição (Efraimidis–Spirakis como corrida de
+// exponenciais): cada item tira um tempo −ln(u)/peso e a lista sai do menor pro
+// maior. A 1ª posição cai com cada item na proporção do seu peso; a 2ª, idem
+// entre os que sobraram; e assim por diante. Pesos iguais → embaralhamento
+// uniforme. Mesma semente → mesma ordem.
+function weightedShuffle(list, seed, weightOf) {
+  const rand = seededRandom(seed);
+  return list
+    .map((item) => ({ item, time: -Math.log(1 - rand()) / weightOf(item) }))
+    .sort((a, b) => a.time - b.time)
+    .map((x) => x.item);
+}
+
+// Peso do sorteio por partido (DECISÃO do Danilo, 2026-09-13): 1 + (z − z_max)²,
+// z = media_z do partido no GPS Partidário 2026 da Folha (negativo = esquerda) e
+// z_max = a maior do catálogo. O partido mais à direita pesa 1 (NOVO) e o peso
+// cresce com o quadrado da distância até ele (PSTU ~17). O ingest já resolve
+// siglas e substitutos (PCO = PSTU); partido que ainda assim falte entra com
+// z = 0, a média. Sem a tabela (catálogo de exemplo), todos pesam 1.
+function partyWeigher(catalog) {
+  const z = catalog.party_lean?.media_z;
+  if (!z) return () => 1;
+  const zMax = Math.max(...Object.values(z));
+  return (party) => 1 + ((z[party] ?? 0) - zMax) ** 2;
 }
 
 let toastTimer = null;
@@ -147,7 +163,7 @@ function toast(message, ms = 3200) {
 }
 
 // Foto ou iniciais sobre uma cor da paleta (cor via CSSOM: a CSP barra style="").
-// [n] <small>nome</small>, PARTIDO, <strong>N escolhas</strong> — um item do
+// [n] <small>nome</small>, PARTIDO, <strong>N votos</strong> — um item do
 // placar da tela de início; reusa faceHtml (mesma miniatura de foto/iniciais
 // dos cards e da barra inferior).
 function leaderboardItemHtml(c, votes) {
@@ -155,7 +171,7 @@ function leaderboardItemHtml(c, votes) {
     `<a class="leaderboard-item" href="#/${esc(c.office)}">` +
     faceHtml(c, 'leaderboard-photo') +
     `<span class="leaderboard-text"><b>${esc(c.number)}</b> <small>${esc(c.name)}</small>, ${esc(c.party)}, ` +
-    `<strong>${esc(plural(votes, 'escolha', 'escolhas'))}</strong></span></a>`
+    `<strong>${esc(plural(votes, 'voto', 'votos'))}</strong></span></a>`
   );
 }
 
@@ -275,7 +291,7 @@ function buildOfficeDeck(office) {
     cards: new Map(),
     filter: { query: '', parties: new Set() },
     total: list.length,
-    seed: deviceSeed() ^ Math.imul(office.order, 0x9e3779b9),
+    seed: randomSeed(),
     order: null, // 'votes' | 'random'; null = padrão (votes se o placar estiver disponível)
   };
   deck.search.setAttribute('aria-label', `Buscar candidatas a ${office.label.toLowerCase()}`);
@@ -341,7 +357,7 @@ function buildOfficeDeck(office) {
     const btn = ev.target.closest('.order-btn');
     if (!btn) return;
     if (btn.dataset.order === 'random' && effectiveOrder(deck) === 'random') {
-      deck.seed = crypto.getRandomValues(new Uint32Array(1))[0]; // tocou de novo: novo sorteio
+      deck.seed = randomSeed(); // tocou de novo: novo sorteio
     }
     deck.order = btn.dataset.order;
     sortDeck(deck);
@@ -414,7 +430,25 @@ function renderLeaderboard() {
   el.querySelectorAll('.leaderboard-office').forEach((n) => n.remove());
   el.insertAdjacentHTML('beforeend', sections);
   el.hidden = !sections;
+  $('intro-votes').textContent = votesSummary();
   paintNoPhoto(el);
+}
+
+// Votos por cargo = escolhas somadas (uma resposta marca até 10 por cargo), não
+// respostas. "1.234 votos totais, sendo 500 em deputadas estaduais, …, 100 em
+// governadoras e 34 em presidentas".
+function votesSummary() {
+  const counts = state.tally?.counts || {};
+  const perOffice = state.offices.map((office) => ({
+    office,
+    votes: (state.catalog.candidates[office.slug] || []).reduce((sum, c) => sum + (counts[c.sq] || 0), 0),
+  }));
+  const total = perOffice.reduce((sum, x) => sum + x.votes, 0);
+  const parts = perOffice.map(
+    ({ office, votes }) => `${votes.toLocaleString('pt-BR')} em ${(office.plural || office.title).toLocaleLowerCase('pt-BR')}`
+  );
+  const last = parts.pop();
+  return `${plural(total, 'voto total', 'votos totais')}, sendo ${parts.length ? `${parts.join(', ')} e ` : ''}${last}`;
 }
 
 function setWomenOnly(on) {
@@ -442,7 +476,8 @@ function effectiveOrder(deck) {
 
 function sortDeck(deck) {
   const order = effectiveOrder(deck);
-  const sorted = shuffle(state.catalog.candidates[deck.office.slug] || [], deck.seed);
+  const weight = partyWeigher(state.catalog);
+  const sorted = weightedShuffle(state.catalog.candidates[deck.office.slug] || [], deck.seed, (c) => weight(c.party));
   if (order === 'votes') {
     const position = new Map(sorted.map((c, i) => [c.sq, i])); // empate: vale o sorteio
     const counts = state.tally.counts;
@@ -476,6 +511,7 @@ async function loadTally() {
     return; // offline: fica o que já tinha
   }
   if (state.currentRoute === 'inicio') fillIntro();
+  if (state.currentRoute === 'obrigada') drawBoardStory();
   for (const deck of state.decks.values()) {
     if (tallyAvailable() !== wasAvailable) sortDeck(deck);
     else updateVotes(deck);
@@ -521,6 +557,13 @@ function updateDeckSelection(deck) {
 function routeName(route) {
   const office = state.offices.find((o) => o.slug === route);
   return office ? office.title : { inicio: 'Início', enviar: 'Enviar', obrigada: 'Obrigada' }[route];
+}
+
+// Rótulo curto da barra de etapas do topo (intro | dep. est. | … | obrigada);
+// o dos cargos vem do vocab.ttl (dh:shortLabel).
+function stepLabel(route) {
+  const office = state.offices.find((o) => o.slug === route);
+  return office ? office.short || office.label.toLowerCase() : { inicio: 'intro', enviar: 'enviar', obrigada: 'obrigada' }[route];
 }
 
 function goTo(route) {
@@ -579,8 +622,15 @@ function goBack() {
 function buildProgress() {
   const ol = $('progress');
   const n = state.routes.length;
+  // o nome acessível começa pelo rótulo visível (quem usa comando de voz fala o que vê)
   ol.innerHTML = state.routes
-    .map((r, i) => `<li data-route="${esc(r)}"><button type="button" aria-label="Etapa ${i + 1} de ${n}: ${esc(routeName(r))}"></button></li>`)
+    .map((r, i) => {
+      const label = stepLabel(r);
+      return (
+        `<li data-route="${esc(r)}"><button type="button" aria-label="${esc(label)}: etapa ${i + 1} de ${n}, ${esc(routeName(r))}">` +
+        `<span class="progress-label">${esc(label)}</span></button></li>`
+      );
+    })
     .join('');
   ol.addEventListener('click', (ev) => {
     const li = ev.target.closest('li');
@@ -803,12 +853,14 @@ async function prepareBadge() {
     await Promise.all([
       document.fonts.load('700 58px "IBM Plex Mono"'),
       document.fonts.load('600 30px "IBM Plex Mono"'), // eyebrow do Story
+      document.fonts.load('400 28px "IBM Plex Mono"'), // totais do Story do placar
     ]);
   } catch {
     /* sem a fonte cai no monospace do sistema */
   }
   drawBadge();
   drawStoryBadge();
+  drawBoardStory();
 }
 
 function photoDiameter() {
@@ -948,6 +1000,150 @@ function drawStoryBadge() {
   ctx.fillText('pesquisa.pedalhidrografi.co', W / 2, by + badgeSize + 158);
 }
 
+// Story do placar (1080×1920): o "Quem está na frente" da tela de início —
+// totais + top 5 de cada cargo — no mesmo fundo claro fixo do Story do selo,
+// pra divulgar o andamento do levantamento. As fotos vêm do próprio domínio
+// (photos/), então o canvas continua exportável (toBlob).
+const BOARD_STORY = { width: 1080, height: 1920, side: 48, photo: 64, block: 240, areaBottom: 1650 };
+const facePhotos = new Map(); // sq → Promise<HTMLImageElement | null>
+let boardGeneration = 0;
+
+function loadFacePhoto(c) {
+  if (!c.photo) return Promise.resolve(null);
+  if (!facePhotos.has(c.sq)) {
+    const img = new Image();
+    img.src = c.photo;
+    facePhotos.set(c.sq, img.decode().then(() => img, () => null));
+  }
+  return facePhotos.get(c.sq);
+}
+
+function ellipsize(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let s = text;
+  while (s.length > 1 && ctx.measureText(`${s}…`).width > maxWidth) s = s.slice(0, -1);
+  return `${s.trimEnd()}…`;
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const lines = [''];
+  for (const word of text.split(' ')) {
+    const line = lines[lines.length - 1];
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > maxWidth) lines.push(word);
+    else lines[lines.length - 1] = next;
+  }
+  return lines;
+}
+
+const canvasFont = (weight, px) => `${weight} ${px}px "IBM Plex Mono", ui-monospace, monospace`;
+
+// Miniatura redonda: foto em "cover" (como o .leaderboard-photo) ou iniciais
+// sobre a cor da candidatura (como o .no-photo).
+function drawFace(ctx, c, img, cx, cy, d) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
+  ctx.clip();
+  if (img) {
+    const scale = Math.max(d / img.naturalWidth, d / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  } else {
+    ctx.fillStyle = colorFor(c.sq);
+    ctx.fillRect(cx - d / 2, cy - d / 2, d, d);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = canvasFont(700, Math.round(d * 0.34));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials(c.name), cx, cy);
+  }
+  ctx.restore();
+}
+
+async function drawBoardStory() {
+  const generation = ++boardGeneration;
+  const boards = tallyAvailable()
+    ? state.offices.map((office) => ({ office, top: topCandidates(office.slug) })).filter((b) => b.top.length)
+    : [];
+  if (!boards.length) {
+    $('board-story').hidden = true;
+    return;
+  }
+  const faces = new Map(
+    await Promise.all(boards.flatMap((b) => b.top.map(async ({ c }) => [c.sq, await loadFacePhoto(c)])))
+  );
+  if (generation !== boardGeneration) return; // o placar mudou enquanto as fotos carregavam
+
+  const { width: W, height: H, side, photo: D, block, areaBottom } = BOARD_STORY;
+  const ctx = $('board-story-canvas').getContext('2d');
+  ctx.fillStyle = '#f7f5ef';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+
+  ctx.fillStyle = '#6f6d66';
+  ctx.font = canvasFont(600, 30);
+  ctx.fillText('LEVANTAMENTO PEDAL HIDROGRÁFICO', W / 2, 170);
+  ctx.fillStyle = '#121210';
+  ctx.font = canvasFont(700, 66);
+  ctx.fillText('Quem está na frente', W / 2, 250);
+  const rule = ctx.createLinearGradient(W / 2 - 260, 0, W / 2 + 260, 0);
+  PALETTE.forEach((color, i) => rule.addColorStop(i / (PALETTE.length - 1), color));
+  ctx.fillStyle = rule;
+  ctx.fillRect(W / 2 - 260, 276, 520, 8);
+
+  // os totais: a mesma frase da tela de início
+  ctx.fillStyle = '#4d4b45';
+  ctx.font = canvasFont(400, 28);
+  const lines = wrapLines(ctx, votesSummary(), W - 2 * side);
+  lines.forEach((line, i) => ctx.fillText(line, W / 2, 336 + i * 38));
+
+  // top 5 por cargo, centrado no espaço entre os totais e o convite
+  const cellW = (W - 2 * side) / 5;
+  const areaTop = 336 + (lines.length - 1) * 38 + 40;
+  let y = areaTop + Math.max(0, (areaBottom - areaTop - boards.length * block) / 2);
+  for (const { office, top } of boards) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#6f6d66';
+    ctx.font = canvasFont(600, 24);
+    ctx.fillText(office.title.toLocaleUpperCase('pt-BR'), side, y + 24);
+    const x0 = W / 2 - (top.length * cellW) / 2;
+    top.forEach(({ c, votes }, i) => {
+      const cx = x0 + cellW * (i + 0.5);
+      const photoTop = y + 44;
+      drawFace(ctx, c, faces.get(c.sq), cx, photoTop + D / 2, D);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#121210';
+      ctx.font = canvasFont(700, 28);
+      ctx.fillText(c.number, cx, photoTop + D + 34);
+      ctx.fillStyle = '#4d4b45';
+      ctx.font = canvasFont(400, 20);
+      ctx.fillText(ellipsize(ctx, c.name, cellW - 12), cx, photoTop + D + 60);
+      ctx.fillStyle = '#6f6d66';
+      ctx.font = canvasFont(600, 18);
+      ctx.fillText(ellipsize(ctx, c.party, cellW - 12), cx, photoTop + D + 84);
+      ctx.fillStyle = '#121210';
+      ctx.font = canvasFont(700, 21);
+      ctx.fillText(plural(votes, 'voto', 'votos'), cx, photoTop + D + 110);
+    });
+    y += block;
+  }
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#121210';
+  ctx.font = canvasFont(700, 40);
+  ctx.fillText('responda também:', W / 2, 1722);
+  ctx.fillStyle = '#2c6fd6';
+  ctx.font = canvasFont(700, 46);
+  ctx.fillText('pesquisa.pedalhidrografi.co', W / 2, 1780);
+
+  $('board-story').hidden = false;
+  setSaveButtons('board-story-share', 'board-story-download');
+}
+
 function scheduleDraw() {
   if (badge.frame) return;
   badge.frame = requestAnimationFrame(() => {
@@ -979,18 +1175,21 @@ async function pickPhoto(file) {
   // Share: o <a download> do Safari em iOS não tem acesso ao álbum, só aos
   // Arquivos. Onde o navegador suporta, "Salvar no álbum" vira a ação
   // primária; sem suporte, "Baixar arquivo" assume o lugar (única opção).
-  const canShare = canShareFiles();
-  for (const [shareId, downloadId] of [['badge-share', 'badge-download'], ['story-share', 'story-download']]) {
-    const shareBtn = $(shareId);
-    const downloadBtn = $(downloadId);
-    shareBtn.hidden = !canShare;
-    shareBtn.disabled = false;
-    downloadBtn.disabled = false;
-    downloadBtn.classList.toggle('btn-primary', !canShare);
-    downloadBtn.classList.toggle('btn-secondary', canShare);
-  }
-  $('badge-save-hint').hidden = !canShare;
+  setSaveButtons('story-share', 'story-download');
+  $('badge-save-hint').hidden = !setSaveButtons('badge-share', 'badge-download');
   await prepareBadge();
+}
+
+function setSaveButtons(shareId, downloadId) {
+  const canShare = canShareFiles();
+  const shareBtn = $(shareId);
+  const downloadBtn = $(downloadId);
+  shareBtn.hidden = !canShare;
+  shareBtn.disabled = false;
+  downloadBtn.disabled = false;
+  downloadBtn.classList.toggle('btn-primary', !canShare);
+  downloadBtn.classList.toggle('btn-secondary', canShare);
+  return canShare;
 }
 
 function pointerDistance() {
@@ -1023,10 +1222,10 @@ async function downloadImage(canvas, filename) {
 // navigator.share com um único arquivo de imagem: o menu que abre tem
 // "Salvar Imagem" (iOS) — vai direto pro álbum de fotos, ao contrário do
 // <a download>, que no Safari cai nos Arquivos (motivo de existir esta função).
-async function shareImage(canvas, filename) {
+async function shareImage(canvas, filename, text = 'eu participei do datahidro 2026 · pesquisa.pedalhidrografi.co') {
   const file = new File([await canvasBlob(canvas)], filename, { type: 'image/jpeg' });
   try {
-    await navigator.share({ files: [file], title: 'datahidro 2026', text: 'eu participei do datahidro 2026 · pesquisa.pedalhidrografi.co' });
+    await navigator.share({ files: [file], title: 'datahidro 2026', text });
   } catch {
     /* cancelado */
   }
@@ -1088,6 +1287,12 @@ function bindBadge() {
   $('badge-share').addEventListener('click', () => shareImage($('badge-canvas'), 'selo-datahidro-2026.jpg'));
   $('story-download').addEventListener('click', () => downloadImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
   $('story-share').addEventListener('click', () => shareImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
+  $('board-story-download').addEventListener('click', () =>
+    downloadImage($('board-story-canvas'), 'placar-datahidro-2026-story.jpg')
+  );
+  $('board-story-share').addEventListener('click', () =>
+    shareImage($('board-story-canvas'), 'placar-datahidro-2026-story.jpg', 'quem está na frente no datahidro 2026 · pesquisa.pedalhidrografi.co')
+  );
 }
 
 // ===================== início do app =====================
