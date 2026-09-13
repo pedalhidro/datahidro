@@ -628,6 +628,20 @@ main {
 .badge canvas.draggable { cursor: grab; }
 .badge canvas.draggable:active { cursor: grabbing; }
 
+/* Story: mesma moldura do selo, mas retangular (9:16) — não herda o
+   border-radius:50% de .badge canvas, então é um bloco próprio. */
+.badge-story {
+  width: min(56%, 220px);
+  margin: 16px auto 8px;
+}
+.badge-story canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+
 .hint { text-align: center; font-size: 0.85rem; color: var(--muted); margin: 4px 0; }
 
 .zoom {

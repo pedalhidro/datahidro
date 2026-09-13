@@ -56,6 +56,13 @@ aqui. Este arquivo guarda só os invariantes deste repo.
   empate desempata pelo sorteio.
 - **Selo**: tudo no canvas, a foto não sobe. A CSP (`backend/main.py`) barra
   `style=""` inline e scripts externos: cor dinâmica via `style.setProperty`.
+  `drawBadgeArt(ctx, size)` desenha o anel em qualquer tamanho; o selo
+  quadrado e o Story (1080×1920, `drawStoryBadge`) chamam a mesma função —
+  não duplicar a arte do anel entre os dois formatos. Salvar direto no
+  álbum de fotos (não em Arquivos) só existe via `navigator.share`
+  (`shareImage`); `downloadImage`/`<a download>` é o único caminho sem
+  suporte a Web Share, e por isso vira a ação primária nesse caso
+  (`pickPhoto` troca `btn-primary`/`btn-secondary` dinamicamente).
 - **Idioma**: UI, comentários e docs em português; identificadores (JS,
   Python, classes CSS, chaves JSON, API, env vars) em inglês. Rotas de hash
   (`#/deputadas-estaduais`) são texto de interface e ficam em português.

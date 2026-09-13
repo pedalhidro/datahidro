@@ -120,8 +120,21 @@
     <div class="actions">
       <label class="btn btn-secondary" for="badge-file">Escolher foto</label>
       <input id="badge-file" class="visually-hidden" type="file" accept="image/*">
-      <button type="button" class="btn btn-primary" id="badge-download" disabled>Baixar selo</button>
-      <button type="button" class="btn btn-secondary" id="badge-share" hidden>Compartilhar</button>
+      <button type="button" class="btn btn-primary" id="badge-share" disabled hidden>Salvar no álbum</button>
+      <button type="button" class="btn btn-secondary" id="badge-download" disabled>Baixar arquivo</button>
+    </div>
+    <p class="hint" id="badge-save-hint" hidden>No menu que abrir, toque na opção de salvar a imagem (no iPhone,
+      “Salvar Imagem”) — ela vai direto pro álbum de fotos, sem passar pelos Arquivos.</p>
+
+    <h2>Story pro Instagram</h2>
+    <p>A mesma foto, já pronta em 1080×1920 — poste direto e convide mais gente a responder.</p>
+    <div class="badge-story">
+      <canvas id="story-canvas" width="1080" height="1920" role="img"
+              aria-label="Prévia do selo em formato de Story do Instagram"></canvas>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="story-share" disabled hidden>Salvar no álbum</button>
+      <button type="button" class="btn btn-secondary" id="story-download" disabled>Baixar arquivo</button>
     </div>
 
     <h2>Chame mais gente</h2>

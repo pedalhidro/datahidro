@@ -11,7 +11,7 @@
 //
 // DISCIPLINA: qualquer mudança em arquivo servido (inclusive rodar o ingest
 // de novo) exige subir a VERSION.
-const VERSION = 'datahidro-v2';
+const VERSION = 'datahidro-v3';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 

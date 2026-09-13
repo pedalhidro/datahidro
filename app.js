@@ -766,19 +766,27 @@ async function invite() {
 // emenda sem costura — é a mesma paleta do relevo do Câmera Topográfica), foto
 // recortada no círculo interno e o texto em arco. O quadrado todo é pintado:
 // plataformas que recortam avatar em círculo mostram exatamente o anel.
+// `drawBadgeArt` desenha esse anel em qualquer tamanho — reusado tanto no
+// selo quadrado (perfil) quanto, encolhido, dentro do Story do Instagram
+// (STORY, 1080×1920): mesma foto, mesmo enquadramento, dois formatos.
 
 const BADGE = { size: 1080, ring: 128, maxZoom: 4 };
+const STORY = { width: 1080, height: 1920, badgeSize: 760, badgeCenterY: 860 };
 const badge = { img: null, url: null, zoom: 1, x: 0, y: 0, pointers: new Map(), pinch: null, frame: 0 };
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 async function prepareBadge() {
   try {
-    await document.fonts.load('700 58px "IBM Plex Mono"');
+    await Promise.all([
+      document.fonts.load('700 58px "IBM Plex Mono"'),
+      document.fonts.load('600 30px "IBM Plex Mono"'), // eyebrow do Story
+    ]);
   } catch {
     /* sem a fonte cai no monospace do sistema */
   }
   drawBadge();
+  drawStoryBadge();
 }
 
 function photoDiameter() {
@@ -800,8 +808,7 @@ function clampOffset() {
 
 // Texto centrado em `center` (radianos, canvas: 0 = direita, horário).
 // Em cima corre no sentido horário; embaixo, anti-horário — os dois de pé.
-function arcText(ctx, text, cx, cy, radius, center, bottom) {
-  const spacing = 5;
+function arcText(ctx, text, cx, cy, radius, center, bottom, spacing = 5) {
   const widths = [...text].map((ch) => ctx.measureText(ch).width + spacing);
   const total = widths.reduce((a, b) => a + b, 0) - spacing;
   let advance = 0;
@@ -817,12 +824,11 @@ function arcText(ctx, text, cx, cy, radius, center, bottom) {
   });
 }
 
-function drawBadge() {
-  const canvas = $('badge-canvas');
-  const ctx = canvas.getContext('2d');
-  const S = BADGE.size;
-  const c = S / 2;
-  const photoRadius = c - BADGE.ring;
+function drawBadgeArt(ctx, size) {
+  const k = size / BADGE.size; // escala traço, texto e foto a partir do tamanho canônico
+  const c = size / 2;
+  const ring = BADGE.ring * k;
+  const photoRadius = c - ring;
 
   if (ctx.createConicGradient) {
     const g = ctx.createConicGradient(-Math.PI / 2, c, c);
@@ -832,49 +838,92 @@ function drawBadge() {
   } else {
     ctx.fillStyle = PALETTE[4];
   }
-  ctx.fillRect(0, 0, S, S);
+  ctx.fillRect(0, 0, size, size);
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(c, c, photoRadius, 0, Math.PI * 2);
   ctx.clip();
   if (badge.img) {
-    const { w, h } = photoSize();
-    ctx.drawImage(badge.img, c - w / 2 + badge.x, c - h / 2 + badge.y, w, h);
+    const { w, h } = photoSize(); // sempre no espaço canônico (BADGE.size) — escala com k abaixo
+    ctx.drawImage(badge.img, c - (w * k) / 2 + badge.x * k, c - (h * k) / 2 + badge.y * k, w * k, h * k);
   } else {
     ctx.fillStyle = '#ebe8df';
-    ctx.fillRect(0, 0, S, S);
+    ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = '#cfcbbf';
     ctx.beginPath();
-    ctx.arc(c, c - 70, 150, 0, Math.PI * 2);
+    ctx.arc(c, c - 70 * k, 150 * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(c, c + 330, 290, 250, 0, 0, Math.PI * 2);
+    ctx.ellipse(c, c + 330 * k, 290 * k, 250 * k, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
 
   ctx.beginPath();
   ctx.arc(c, c, photoRadius, 0, Math.PI * 2);
-  ctx.lineWidth = 10;
+  ctx.lineWidth = 10 * k;
   ctx.strokeStyle = '#ffffff';
   ctx.stroke();
 
-  const textRadius = photoRadius + BADGE.ring / 2;
-  ctx.font = '700 58px "IBM Plex Mono", ui-monospace, monospace';
+  const textRadius = photoRadius + ring / 2;
+  ctx.font = `700 ${58 * k}px "IBM Plex Mono", ui-monospace, monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 10;
-  arcText(ctx, 'eu participei do', c, c, textRadius, -Math.PI / 2, false);
-  arcText(ctx, 'datahidro 2026', c, c, textRadius, Math.PI / 2, true);
+  ctx.shadowBlur = 10 * k;
+  arcText(ctx, 'eu participei do', c, c, textRadius, -Math.PI / 2, false, 5 * k);
+  arcText(ctx, 'datahidro 2026', c, c, textRadius, Math.PI / 2, true, 5 * k);
   for (const side of [-1, 1]) {
     ctx.beginPath();
-    ctx.arc(c + side * textRadius, c, 9, 0, Math.PI * 2);
+    ctx.arc(c + side * textRadius, c, 9 * k, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.shadowColor = 'transparent';
+}
+
+function drawBadge() {
+  drawBadgeArt($('badge-canvas').getContext('2d'), BADGE.size);
+}
+
+// Story do Instagram (1080×1920): o mesmo selo redondo, encolhido, sobre um
+// fundo claro FIXO (não segue o tema do aparelho — é uma imagem pra postar
+// fora do app, precisa ficar igual pra todo mundo) + um convite a responder.
+function drawStoryBadge() {
+  const canvas = $('story-canvas');
+  const ctx = canvas.getContext('2d');
+  const { width: W, height: H, badgeSize, badgeCenterY } = STORY;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#f7f5ef';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#6f6d66';
+  ctx.font = '600 30px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.fillText('LEVANTAMENTO PEDAL HIDROGRÁFICO', W / 2, 320);
+
+  // o anel é desenhado à parte (mesmo drawBadgeArt do selo quadrado, só que
+  // menor) e composto aqui — assim os dois formatos nunca podem divergir.
+  const off = document.createElement('canvas');
+  off.width = off.height = badgeSize;
+  drawBadgeArt(off.getContext('2d'), badgeSize);
+  const bx = (W - badgeSize) / 2;
+  const by = badgeCenterY - badgeSize / 2;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowBlur = 44;
+  ctx.shadowOffsetY = 18;
+  ctx.drawImage(off, bx, by);
+  ctx.restore();
+
+  ctx.fillStyle = '#121210';
+  ctx.font = '700 42px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.fillText('responda também:', W / 2, by + badgeSize + 96);
+  ctx.fillStyle = '#2c6fd6';
+  ctx.font = '700 48px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.fillText('pesquisa.pedalhidrografi.co', W / 2, by + badgeSize + 158);
 }
 
 function scheduleDraw() {
@@ -882,6 +931,7 @@ function scheduleDraw() {
   badge.frame = requestAnimationFrame(() => {
     badge.frame = 0;
     drawBadge();
+    drawStoryBadge();
   });
 }
 
@@ -903,8 +953,21 @@ async function pickPhoto(file) {
   $('badge-zoom-label').hidden = false;
   $('badge-hint').hidden = false;
   $('badge-canvas').classList.add('draggable');
-  $('badge-download').disabled = false;
-  $('badge-share').hidden = !canShareFiles();
+  // Salvar direto no álbum de fotos (iOS/Android) só é possível via Web
+  // Share: o <a download> do Safari em iOS não tem acesso ao álbum, só aos
+  // Arquivos. Onde o navegador suporta, "Salvar no álbum" vira a ação
+  // primária; sem suporte, "Baixar arquivo" assume o lugar (única opção).
+  const canShare = canShareFiles();
+  for (const [shareId, downloadId] of [['badge-share', 'badge-download'], ['story-share', 'story-download']]) {
+    const shareBtn = $(shareId);
+    const downloadBtn = $(downloadId);
+    shareBtn.hidden = !canShare;
+    shareBtn.disabled = false;
+    downloadBtn.disabled = false;
+    downloadBtn.classList.toggle('btn-primary', !canShare);
+    downloadBtn.classList.toggle('btn-secondary', canShare);
+  }
+  $('badge-save-hint').hidden = !canShare;
   await prepareBadge();
 }
 
@@ -913,8 +976,8 @@ function pointerDistance() {
   return Math.hypot(a.x - b.x, a.y - b.y) || 1;
 }
 
-function badgeBlob() {
-  return new Promise((resolve) => $('badge-canvas').toBlob(resolve, 'image/jpeg', 0.92));
+function canvasBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
 }
 
 function canShareFiles() {
@@ -925,18 +988,21 @@ function canShareFiles() {
   }
 }
 
-async function downloadBadge() {
+async function downloadImage(canvas, filename) {
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(await badgeBlob());
-  link.download = 'selo-datahidro-2026.jpg';
+  link.href = URL.createObjectURL(await canvasBlob(canvas));
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
 }
 
-async function shareBadge() {
-  const file = new File([await badgeBlob()], 'selo-datahidro-2026.jpg', { type: 'image/jpeg' });
+// navigator.share com um único arquivo de imagem: o menu que abre tem
+// "Salvar Imagem" (iOS) — vai direto pro álbum de fotos, ao contrário do
+// <a download>, que no Safari cai nos Arquivos (motivo de existir esta função).
+async function shareImage(canvas, filename) {
+  const file = new File([await canvasBlob(canvas)], filename, { type: 'image/jpeg' });
   try {
     await navigator.share({ files: [file], title: 'datahidro 2026', text: 'eu participei do datahidro 2026 · pesquisa.pedalhidrografi.co' });
   } catch {
@@ -996,8 +1062,10 @@ function bindBadge() {
     },
     { passive: false }
   );
-  $('badge-download').addEventListener('click', downloadBadge);
-  $('badge-share').addEventListener('click', shareBadge);
+  $('badge-download').addEventListener('click', () => downloadImage($('badge-canvas'), 'selo-datahidro-2026.jpg'));
+  $('badge-share').addEventListener('click', () => shareImage($('badge-canvas'), 'selo-datahidro-2026.jpg'));
+  $('story-download').addEventListener('click', () => downloadImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
+  $('story-share').addEventListener('click', () => shareImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
 }
 
 // ===================== início do app =====================
