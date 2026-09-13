@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>datahidro 2026 · levantamento Pedal Hidrográfico</title>
+<meta name="description" content="Levantamento Pedal Hidrográfico de candidatas às eleições de 2026 em São Paulo: deputadas estaduais e federais, senadoras, governadora e presidenta. Uns 3 minutos, anônimo, sem cadastro.">
+<link rel="canonical" href="https://pesquisa.pedalhidrografi.co/">
+<meta property="og:title" content="datahidro 2026">
+<meta property="og:description" content="Levantamento Pedal Hidrográfico de candidatas às eleições de 2026 em São Paulo. Participe e ganhe seu selo.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://pesquisa.pedalhidrografi.co/">
+<meta property="og:image" content="https://pesquisa.pedalhidrografi.co/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f7f5ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11110f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preload" href="data/candidates.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<noscript><p class="noscript">O datahidro precisa de JavaScript ligado pra funcionar.</p></noscript>
+
+<div id="sample-banner" class="sample-banner" hidden>
+  DADOS FICTÍCIOS DE EXEMPLO — não são candidaturas reais
+</div>
+
+<header class="topbar">
+  <a class="brand" href="#/inicio">data<span class="brand-hidro">hidro</span><span class="brand-year">2026</span></a>
+  <ol class="progress" id="progress" aria-label="Etapas do levantamento"></ol>
+</header>
+
+<main id="main">
+
+  <!-- ============ 1. início ============ -->
+  <section class="deck deck-text" id="deck-inicio" data-route="inicio" hidden>
+    <div class="hero-ring" aria-hidden="true"></div>
+    <p class="eyebrow">Levantamento Pedal Hidrográfico</p>
+    <h1>Candidatas às eleições de 2026 em São Paulo</h1>
+    <p class="lead">Dia 4 de outubro São Paulo vai às urnas. Antes disso, queremos saber
+      em quais candidatas a comunidade que pedala com a gente pensa em votar — da
+      Assembleia Legislativa à Presidência.</p>
+
+    <ol class="steps">
+      <li><strong>5 cargos</strong>, um por tela: deputada estadual, deputada federal,
+        senadora, governadora e presidenta.</li>
+      <li><strong>Até 10 escolhas por cargo.</strong> Busque por nome, número ou partido,
+        veja só as mulheres — ou pule o cargo.</li>
+      <li><strong>Envie.</strong> Uns 3 minutos, anônimo, sem cadastro nem login.</li>
+      <li><strong>Ganhe seu selo</strong> “eu participei do datahidro 2026” pra foto de perfil.</li>
+    </ol>
+
+    <div class="note">
+      <p id="intro-source">A lista de candidatas vem dos dados abertos do TSE.</p>
+      <p>Em cada cargo dá pra ver as candidatas pelas mais escolhidas até agora ou em ordem
+        aleatória — sorteada pra cada pessoa, pra não favorecer ninguém.</p>
+      <p id="intro-tally" hidden></p>
+      <p><strong>Privacidade:</strong> a resposta é anônima — sem nome, e-mail nem login. Ela
+        fica guardada só com o coletivo; o placar mostra apenas o total de cada candidata.</p>
+    </div>
+
+    <p id="intro-resubmit" class="notice" hidden>Você já participou por este aparelho. Pode
+      revisar e enviar de novo — a resposta anterior é substituída.</p>
+    <p id="intro-error" class="error" role="alert" hidden></p>
+
+    <footer class="footer">
+      <a href="https://pedalhidrografi.co" rel="noopener">Pedal Hidrográfico</a> · seguir as águas ·
+      <a href="https://github.com/pedalhidro/datahidro" rel="noopener">código aberto</a>
+    </footer>
+  </section>
+
+  <!-- ============ 2–6. cargos (montados pelo app.js a partir de data/candidates.json) ============ -->
+  <div id="office-decks"></div>
+
+  <!-- ============ 7. enviar ============ -->
+  <section class="deck deck-text" id="deck-enviar" data-route="enviar" hidden>
+    <h1>Revisar e enviar</h1>
+    <div id="summary" class="summary"></div>
+
+    <form id="submit-form" novalidate>
+      <label class="consent">
+        <input type="checkbox" name="consent" id="consent">
+        <span>Autorizo o Pedal Hidrográfico a guardar estas escolhas, sem identificação, no
+          levantamento datahidro 2026 e a somá-las ao placar.</span>
+      </label>
+
+      <p id="submit-error" class="error" role="alert" hidden></p>
+      <button type="submit" class="btn btn-primary btn-wide" id="btn-submit">Enviar respostas</button>
+    </form>
+  </section>
+
+  <!-- ============ 8. obrigada + selo ============ -->
+  <section class="deck deck-text" id="deck-obrigada" data-route="obrigada" hidden>
+    <h1>Obrigada por participar!</h1>
+    <p class="lead">Suas respostas chegaram. Mudou de ideia? Volte e envie de novo por este
+      aparelho — a resposta anterior é substituída.</p>
+
+    <h2>Seu selo</h2>
+    <p>Monte uma foto de perfil com o selo <strong>eu participei do datahidro 2026</strong>.
+      A foto não sai do seu aparelho: o selo é feito aqui mesmo, no navegador.</p>
+
+    <div class="badge">
+      <canvas id="badge-canvas" width="1080" height="1080" role="img"
+              aria-label="Prévia do selo eu participei do datahidro 2026"></canvas>
+    </div>
+    <p class="hint" id="badge-hint" hidden>Arraste pra enquadrar; aproxime com dois dedos ou no controle abaixo.</p>
+    <label class="zoom" id="badge-zoom-label" hidden>
+      <span>zoom</span>
+      <input id="badge-zoom" type="range" min="1" max="4" step="0.01" value="1">
+    </label>
+
+    <div class="actions">
+      <label class="btn btn-secondary" for="badge-file">Escolher foto</label>
+      <input id="badge-file" class="visually-hidden" type="file" accept="image/*">
+      <button type="button" class="btn btn-primary" id="badge-download" disabled>Baixar selo</button>
+      <button type="button" class="btn btn-secondary" id="badge-share" hidden>Compartilhar</button>
+    </div>
+
+    <h2>Chame mais gente</h2>
+    <p>Quanto mais gente responder, mais o levantamento diz sobre a nossa comunidade.</p>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="btn-invite">Compartilhar o datahidro</button>
+    </div>
+  </section>
+</main>
+
+<nav class="bottombar" id="bottombar" aria-label="Navegação entre etapas">
+  <button type="button" class="btn btn-icon" id="btn-back" aria-label="Voltar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>
+  </button>
+  <div class="bottombar-middle" id="bottombar-middle"></div>
+  <button type="button" class="btn btn-primary" id="btn-next">Começar</button>
+</nav>
+
+<template id="tpl-office">
+  <section class="deck deck-office" hidden>
+    <div class="filters">
+      <div class="filters-top">
+        <h1 class="office-title"></h1>
+        <p class="counter"><span class="counter-n">0</span><span class="counter-max">/10</span></p>
+      </div>
+      <p class="office-question"></p>
+      <input class="search" type="search" placeholder="Buscar nome, número ou partido"
+             enterkeyhint="search" autocomplete="off" spellcheck="false">
+      <div class="chips" role="group"></div>
+    </div>
+    <div class="result">
+      <span class="result-text" aria-live="polite"></span>
+      <span class="order" role="group" aria-label="Ordem das candidatas">
+        <button type="button" class="order-btn" data-order="votes" aria-pressed="false" hidden>mais escolhidas</button>
+        <button type="button" class="order-btn" data-order="random" aria-pressed="true"
+                title="Toque de novo pra sortear outra ordem">aleatória ↻</button>
+      </span>
+    </div>
+    <div class="grid"></div>
+    <p class="empty" hidden></p>
+  </section>
+</template>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+</body>
+</html>

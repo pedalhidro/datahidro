@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- datahidro
+local-state/
+tools/_cache/
+# miniaturas geradas pelo tools/ingest_tse.py (o deploy sobe via .gcloudignore)
+photos/
+# lib/: só as fontes vendoradas são do repo (o template Python acima ignora
+# lib/ inteiro, e um venv criado na raiz põe lib/python3.x/ aqui dentro)
+!lib/
+lib/*
+!lib/fonts/
+# venv criado na raiz do repo (prefira .venv/, já ignorado)
+/bin/
+/include/
+/lib64
+/pyvenv.cfg
+/share/
+# build local do wrangler (cloudflare/)
+.wrangler/

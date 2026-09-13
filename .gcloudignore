@@ -1,0 +1,18 @@
+# `gcloud run deploy --source .` — com este arquivo o gcloud NÃO usa o
+# .gitignore (que ignora photos/: geradas pelo ingest, mas o container precisa).
+.git
+.gitignore
+.gcloudignore
+local-state/
+tools/_cache/
+**/__pycache__/
+*.pyc
+.venv/
+# venv criado na raiz do repo (prefira .venv/)
+/bin/
+/include/
+/lib/python*/
+/lib64
+/pyvenv.cfg
+/share/
+**/.wrangler/

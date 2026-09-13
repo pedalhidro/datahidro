@@ -1,0 +1,21 @@
+# datahidro — Worker da Cloudflare: pesquisa.pedalhidrografi.co → Cloud Run.
+#
+# O ./deploy.sh publica este Worker no fim, passando a URL do Cloud Run:
+#   npx wrangler deploy --config cloudflare/wrangler.toml --var ORIGIN:https://….run.app
+# Precisa de `npx wrangler login` ou CLOUDFLARE_API_TOKEN com Workers Scripts:Edit,
+# Workers Routes:Edit e DNS:Edit na zona pedalhidrografi.co.
+#
+# Testar local contra o backend local:
+#   npx wrangler dev --config cloudflare/wrangler.toml --var ORIGIN:http://127.0.0.1:8626
+
+name = "datahidro"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+# ORIGIN vem do deploy.sh (--var); não apagar em deploys sem --var.
+keep_vars = true
+
+# Custom domain: a Cloudflare cria o registro DNS e o certificado sozinha
+# (a zona pedalhidrografi.co já está na conta).
+routes = [{ pattern = "pesquisa.pedalhidrografi.co", custom_domain = true }]

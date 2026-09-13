@@ -1,0 +1,162 @@
+# datahidro — shapes SHACL. É o PORTÃO DE ESCRITA do backend: resposta cujo
+# grafo tenha sh:Violation → 422. sh:Warning (ideal) passa.
+#
+# Pra validar uma resposta o backend junta, ao grafo dela, as triplas de
+# catálogo (backend/rdfmodel.py) SÓ das candidaturas escolhidas: candidatura
+# fora do catálogo fica sem rdf:type → viola sh:class; o limite por cargo é
+# sh:qualifiedMaxCount sobre dh:office. sh:closed: resposta só leva escolhas e
+# consentimento (nada de nome, contato ou qualquer outro dado da pessoa).
+#
+# Limites espelham dh:maxChoices do vocab.ttl — mudou um, muda o outro.
+
+@prefix sh:      <http://www.w3.org/ns/shacl#> .
+@prefix dh:      <https://id.pedalhidrografi.co/datahidro/terms#> .
+@prefix dhsh:    <https://id.pedalhidrografi.co/datahidro/shapes#> .
+@prefix schema:  <https://schema.org/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+# ---------------------------------------------------------------- resposta
+
+dhsh:SurveyResponseShape a sh:NodeShape ;
+    sh:targetClass dh:SurveyResponse ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:nodeKind sh:IRI ;
+    sh:pattern "^https://id\\.pedalhidrografi\\.co/datahidro/resposta/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ;
+    sh:property
+        dhsh:responseSurvey, dhsh:responseGenerated, dhsh:responseModified,
+        dhsh:responseConsent, dhsh:responseConsentVersion,
+        dhsh:responseChoiceClass, dhsh:responseChoiceAny,
+        dhsh:maxStateDeputy, dhsh:maxFederalDeputy, dhsh:maxSenator,
+        dhsh:maxGovernor, dhsh:maxPresident .
+
+dhsh:responseSurvey a sh:PropertyShape ;
+    sh:path dh:survey ;
+    sh:hasValue <https://id.pedalhidrografi.co/datahidro/levantamento/2026> ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:severity sh:Violation ;
+    sh:message "a resposta precisa apontar pro levantamento 2026"@pt .
+
+dhsh:responseGenerated a sh:PropertyShape ;
+    sh:path prov:generatedAtTime ;
+    sh:datatype xsd:dateTime ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:severity sh:Violation ;
+    sh:message "prov:generatedAtTime obrigatório (xsd:dateTime)"@pt .
+
+dhsh:responseModified a sh:PropertyShape ;
+    sh:path dcterms:modified ;
+    sh:datatype xsd:dateTime ;
+    sh:maxCount 1 ;
+    sh:severity sh:Violation ;
+    sh:message "dcterms:modified, se houver, é um xsd:dateTime"@pt .
+
+dhsh:responseConsent a sh:PropertyShape ;
+    sh:path dh:consentGiven ;
+    sh:hasValue true ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:severity sh:Violation ;
+    sh:message "sem consentimento não dá pra guardar a resposta"@pt .
+
+dhsh:responseConsentVersion a sh:PropertyShape ;
+    sh:path dh:consentVersion ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:minLength 1 ; sh:maxLength 32 ;
+    sh:severity sh:Violation ;
+    sh:message "versão do texto de consentimento obrigatória"@pt .
+
+dhsh:responseChoiceClass a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:class dh:Candidacy ;
+    sh:severity sh:Violation ;
+    sh:message "candidatura desconhecida (fora do catálogo desta versão)"@pt .
+
+dhsh:responseChoiceAny a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:minCount 1 ;
+    sh:severity sh:Warning ;
+    sh:message "resposta sem nenhuma escolha"@pt .
+
+dhsh:maxStateDeputy a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:qualifiedValueShape [ sh:path dh:office ; sh:hasValue dh:StateDeputy ] ;
+    sh:qualifiedMaxCount 10 ;
+    sh:severity sh:Violation ;
+    sh:message "no máximo 10 escolhas para deputada estadual"@pt .
+
+dhsh:maxFederalDeputy a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:qualifiedValueShape [ sh:path dh:office ; sh:hasValue dh:FederalDeputy ] ;
+    sh:qualifiedMaxCount 10 ;
+    sh:severity sh:Violation ;
+    sh:message "no máximo 10 escolhas para deputada federal"@pt .
+
+dhsh:maxSenator a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:qualifiedValueShape [ sh:path dh:office ; sh:hasValue dh:Senator ] ;
+    sh:qualifiedMaxCount 10 ;
+    sh:severity sh:Violation ;
+    sh:message "no máximo 10 escolhas para senadora"@pt .
+
+dhsh:maxGovernor a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:qualifiedValueShape [ sh:path dh:office ; sh:hasValue dh:Governor ] ;
+    sh:qualifiedMaxCount 10 ;
+    sh:severity sh:Violation ;
+    sh:message "no máximo 10 escolhas para governadora"@pt .
+
+dhsh:maxPresident a sh:PropertyShape ;
+    sh:path dh:choice ;
+    sh:qualifiedValueShape [ sh:path dh:office ; sh:hasValue dh:President ] ;
+    sh:qualifiedMaxCount 10 ;
+    sh:severity sh:Violation ;
+    sh:message "no máximo 10 escolhas para presidenta"@pt .
+
+# ---------------------------------------------------------------- candidatura (catálogo)
+
+dhsh:CandidacyShape a sh:NodeShape ;
+    sh:targetClass dh:Candidacy ;
+    sh:nodeKind sh:IRI ;
+    sh:property [
+        sh:path dh:office ;
+        sh:in ( dh:StateDeputy dh:FederalDeputy dh:Senator dh:Governor dh:President ) ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "candidatura sem cargo válido"@pt
+    ] , [
+        sh:path dh:tseSequence ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[0-9]{1,15}$" ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "SQ_CANDIDATO obrigatório (só dígitos)"@pt
+    ] , [
+        sh:path dh:ballotNumber ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[0-9]{2,5}$" ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "número na urna obrigatório (2 a 5 dígitos)"@pt
+    ] , [
+        sh:path schema:name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "nome de urna obrigatório"@pt
+    ] , [
+        sh:path dh:partyAcronym ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "sigla do partido obrigatória"@pt
+    ] , [
+        sh:path schema:image ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "candidatura sem foto"@pt
+    ] .

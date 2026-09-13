@@ -1,0 +1,16 @@
+.git
+.gitignore
+.gcloudignore
+.dockerignore
+Dockerfile
+local-state
+tools/_cache
+**/__pycache__
+.venv
+bin
+include
+lib/python*
+lib64
+pyvenv.cfg
+share
+**/.wrangler

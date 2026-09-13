@@ -1,0 +1,172 @@
+# datahidro — vocabulário do levantamento eleitoral do Pedal Hidrográfico.
+#
+# FONTE ÚNICA dos cargos (ordem das telas, rótulos, código TSE, máximo de
+# escolhas): tools/ingest_tse.py lê daqui e copia pro data/candidates.json,
+# que é o que o app e o backend consomem. Mudou aqui → rode o ingest de novo.
+#
+# Sem rdfs:domain de propósito (gotcha do ecossistema: domain + inferência
+# RDFS tipa sujeitos errado). Validação roda sem inferência.
+
+@prefix dh:      <https://id.pedalhidrografi.co/datahidro/terms#> .
+@prefix schema:  <https://schema.org/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+<https://id.pedalhidrografi.co/datahidro/terms> a owl:Ontology ;
+    dcterms:title "datahidro — vocabulário do levantamento eleitoral"@pt ;
+    dcterms:creator <https://pedalhidrografi.co> ;
+    rdfs:comment "Respostas anônimas ao levantamento Pedal Hidrográfico de candidatas às eleições de 2026 em São Paulo, e o catálogo de candidaturas (derivado dos dados abertos do TSE) a que elas se referem."@pt .
+
+# ---------------------------------------------------------------- classes
+
+dh:Survey a owl:Class ;
+    rdfs:subClassOf schema:CreativeWork ;
+    rdfs:label "Levantamento"@pt .
+
+dh:SurveyResponse a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Resposta ao levantamento"@pt ;
+    rdfs:comment "Uma resposta anônima enviada por um aparelho: só as escolhas e o consentimento. Reenviar do mesmo aparelho substitui a resposta (mesmo IRI); o histórico fica no versionamento do bucket."@pt .
+
+dh:Candidacy a owl:Class ;
+    rdfs:label "Candidatura"@pt ;
+    rdfs:comment "Candidatura registrada no TSE, identificada pelo SQ_CANDIDATO."@pt .
+
+dh:Office a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Cargo"@pt .
+
+# ---------------------------------------------------------------- o levantamento
+
+<https://id.pedalhidrografi.co/datahidro/levantamento/2026> a dh:Survey ;
+    schema:name "datahidro 2026"@pt ;
+    schema:alternateName "Levantamento Pedal Hidrográfico de candidatas às eleições de 2026 em São Paulo"@pt ;
+    schema:url <https://pesquisa.pedalhidrografi.co/> ;
+    schema:inLanguage "pt-BR" ;
+    schema:publisher <https://pedalhidrografi.co> ;
+    schema:about "Eleições gerais de 2026 — 1º turno em 4 de outubro de 2026"@pt .
+
+# ---------------------------------------------------------------- cargos
+# skos:notation = CD_CARGO do TSE; dh:jurisdiction = SG_UF das candidaturas
+# (presidência vem com SG_UF "BR"). dh:deckOrder = ordem das telas.
+
+dh:OfficeScheme a skos:ConceptScheme ;
+    skos:prefLabel "Cargos do levantamento"@pt .
+
+dh:StateDeputy a dh:Office ;
+    skos:inScheme dh:OfficeScheme ;
+    skos:prefLabel "Deputada estadual"@pt ;
+    dh:deckLabel "Deputadas estaduais"@pt ;
+    skos:notation "7" ;
+    dh:jurisdiction "SP" ;
+    dh:slug "deputadas-estaduais" ;
+    dh:deckOrder 1 ;
+    dh:maxChoices 10 .
+
+dh:FederalDeputy a dh:Office ;
+    skos:inScheme dh:OfficeScheme ;
+    skos:prefLabel "Deputada federal"@pt ;
+    dh:deckLabel "Deputadas federais"@pt ;
+    skos:notation "6" ;
+    dh:jurisdiction "SP" ;
+    dh:slug "deputadas-federais" ;
+    dh:deckOrder 2 ;
+    dh:maxChoices 10 .
+
+dh:Senator a dh:Office ;
+    skos:inScheme dh:OfficeScheme ;
+    skos:prefLabel "Senadora"@pt ;
+    dh:deckLabel "Senadoras"@pt ;
+    skos:notation "5" ;
+    dh:jurisdiction "SP" ;
+    dh:slug "senadoras" ;
+    dh:deckOrder 3 ;
+    dh:maxChoices 10 .
+
+dh:Governor a dh:Office ;
+    skos:inScheme dh:OfficeScheme ;
+    skos:prefLabel "Governadora"@pt ;
+    dh:deckLabel "Governadora"@pt ;
+    skos:notation "3" ;
+    dh:jurisdiction "SP" ;
+    dh:slug "governadora" ;
+    dh:deckOrder 4 ;
+    dh:maxChoices 10 .
+
+dh:President a dh:Office ;
+    skos:inScheme dh:OfficeScheme ;
+    skos:prefLabel "Presidenta"@pt ;
+    dh:deckLabel "Presidenta"@pt ;
+    skos:notation "1" ;
+    dh:jurisdiction "BR" ;
+    dh:slug "presidenta" ;
+    dh:deckOrder 5 ;
+    dh:maxChoices 10 .
+
+# ---------------------------------------------------------------- propriedades: resposta
+
+dh:survey a owl:ObjectProperty ;
+    rdfs:label "levantamento"@pt ;
+    rdfs:range dh:Survey .
+
+dh:choice a owl:ObjectProperty ;
+    rdfs:label "escolha"@pt ;
+    rdfs:comment "Candidatura marcada na resposta (no máximo dh:maxChoices por cargo; a ordem de marcação não é registrada)."@pt ;
+    rdfs:range dh:Candidacy .
+
+dh:consentGiven a owl:DatatypeProperty ;
+    rdfs:label "consentimento dado"@pt ;
+    rdfs:comment "Autorização pra guardar a resposta (anônima) e somá-la ao placar."@pt ;
+    rdfs:range xsd:boolean .
+
+dh:consentVersion a owl:DatatypeProperty ;
+    rdfs:label "versão do texto de consentimento"@pt ;
+    rdfs:range xsd:string .
+
+# ---------------------------------------------------------------- propriedades: candidatura
+
+dh:office a owl:ObjectProperty ;
+    rdfs:label "cargo"@pt ;
+    rdfs:range dh:Office .
+
+dh:tseSequence a owl:DatatypeProperty ;
+    rdfs:label "sequencial da candidatura no TSE"@pt ;
+    rdfs:comment "SQ_CANDIDATO"@pt .
+
+dh:ballotNumber a owl:DatatypeProperty ;
+    rdfs:label "número na urna"@pt ;
+    rdfs:comment "NR_CANDIDATO"@pt .
+
+dh:partyAcronym a owl:DatatypeProperty ;
+    rdfs:label "sigla do partido"@pt ;
+    rdfs:comment "SG_PARTIDO"@pt .
+
+dh:partyName a owl:DatatypeProperty ;
+    rdfs:label "nome do partido"@pt ;
+    rdfs:comment "NM_PARTIDO"@pt .
+
+dh:federation a owl:DatatypeProperty ;
+    rdfs:label "federação partidária"@pt ;
+    rdfs:comment "NM_FEDERACAO (quando houver)"@pt .
+
+dh:declaredGender a owl:DatatypeProperty ;
+    rdfs:label "gênero declarado ao TSE"@pt ;
+    rdfs:comment "DS_GENERO"@pt .
+
+dh:registrationStatus a owl:DatatypeProperty ;
+    rdfs:label "situação da candidatura"@pt ;
+    rdfs:comment "DS_DETALHE_SITUACAO_CAND / DS_SITUACAO_CANDIDATURA"@pt .
+
+# ---------------------------------------------------------------- anotações de cargo
+
+dh:deckLabel a owl:AnnotationProperty ; rdfs:label "título da tela"@pt .
+dh:jurisdiction a owl:AnnotationProperty ; rdfs:label "UF das candidaturas (SG_UF)"@pt .
+dh:slug a owl:AnnotationProperty ; rdfs:label "slug da rota no app"@pt .
+dh:deckOrder a owl:AnnotationProperty ; rdfs:label "ordem de exibição"@pt .
+dh:maxChoices a owl:AnnotationProperty ;
+    rdfs:label "máximo de escolhas"@pt ;
+    rdfs:comment "Espelhado no sh:qualifiedMaxCount do data/shapes.ttl — mudou um, muda o outro."@pt .
