@@ -621,7 +621,9 @@ main {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 50%;
+  /* SEM border-radius de propósito: o arquivo exportado é quadrado (canto a
+     canto no anel), então a prévia mostra exatamente esse quadrado — não um
+     círculo que o CSS fingiria e o arquivo salvo desmentiria. */
   touch-action: none;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
 }
