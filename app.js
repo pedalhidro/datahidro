@@ -147,6 +147,18 @@ function toast(message, ms = 3200) {
 }
 
 // Foto ou iniciais sobre uma cor da paleta (cor via CSSOM: a CSP barra style="").
+// [n] <small>nome</small>, PARTIDO, <strong>N escolhas</strong> — um item do
+// placar da tela de início; reusa faceHtml (mesma miniatura de foto/iniciais
+// dos cards e da barra inferior).
+function leaderboardItemHtml(c, votes) {
+  return (
+    `<a class="leaderboard-item" href="#/${esc(c.office)}">` +
+    faceHtml(c, 'leaderboard-photo') +
+    `<span class="leaderboard-text"><b>${esc(c.number)}</b> <small>${esc(c.name)}</small>, ${esc(c.party)}, ` +
+    `<strong>${esc(plural(votes, 'escolha', 'escolhas'))}</strong></span></a>`
+  );
+}
+
 function faceHtml(c, className) {
   if (c.photo) {
     return `<span class="${className}"><img src="${esc(c.photo)}" alt="" loading="lazy" decoding="async" width="180" height="240"></span>`;
@@ -366,6 +378,43 @@ function applyFilter(deck) {
   deck.empty.textContent = deck.total
     ? 'Nenhuma candidata encontrada. Tente outro nome, número ou partido.'
     : `Nenhuma candidatura a ${deck.office.label.toLowerCase()} na lista do TSE usada aqui.`;
+}
+
+// Top 5 de um cargo pelo placar ao vivo (mesmos totais de sortDeck) — só
+// candidaturas com ao menos 1 escolha; cargo sem nenhuma some da lista.
+function topCandidates(officeSlug, n = 5) {
+  const counts = state.tally?.counts;
+  if (!counts) return [];
+  return (state.catalog.candidates[officeSlug] || [])
+    .map((c) => ({ c: state.bySq.get(c.sq), votes: counts[c.sq] || 0 }))
+    .filter((x) => x.votes > 0)
+    .sort((a, b) => b.votes - a.votes)
+    .slice(0, n);
+}
+
+function renderLeaderboard() {
+  const el = $('intro-leaderboard');
+  if (!tallyAvailable()) {
+    el.hidden = true;
+    return;
+  }
+  const sections = state.offices
+    .map((office) => {
+      const top = topCandidates(office.slug);
+      if (!top.length) return '';
+      const items = top
+        .map(({ c, votes }) => leaderboardItemHtml(c, votes))
+        .join('<span class="leaderboard-sep" aria-hidden="true">|</span>');
+      return (
+        `<div class="leaderboard-office"><p class="leaderboard-title">${esc(office.title)}</p>` +
+        `<div class="leaderboard-row">${items}</div></div>`
+      );
+    })
+    .join('');
+  el.querySelectorAll('.leaderboard-office').forEach((n) => n.remove());
+  el.insertAdjacentHTML('beforeend', sections);
+  el.hidden = !sections;
+  paintNoPhoto(el);
 }
 
 function setWomenOnly(on) {
@@ -603,34 +652,7 @@ function updateBar() {
 // ===================== início =====================
 
 function fillIntro() {
-  const cat = state.catalog;
-  const counts = new Intl.ListFormat('pt-BR', { type: 'conjunction' }).format(
-    state.offices.map((o) => `${o.total.toLocaleString('pt-BR')} a ${o.label.toLowerCase()}`)
-  );
-  const date = cat.source?.tse_generated_at ? ` (atualizados em ${cat.source.tse_generated_at.split(' ')[0]})` : '';
-  const genders = cat.filter?.genders;
-  const scope =
-    genders && genders.length === 1 && genders[0] === 'FEMININO'
-      ? ' e reúne as candidaturas com gênero feminino declarado ao TSE'
-      : '';
-  $('intro-source').innerHTML =
-    `A lista vem dos <a href="${esc(cat.source?.url)}" rel="noopener">dados abertos do TSE</a>` +
-    `${esc(date)}${scope}: ${esc(counts)}.` +
-    (cat.filter?.status_available ? ' Candidaturas que o TSE considera inaptas (renúncia, indeferimento…) ficam de fora.' : '');
-
-  const tally = state.tally;
-  const note = $('intro-tally');
-  note.hidden = !tally;
-  if (tally?.available) {
-    note.textContent = `O placar das mais escolhidas está aberto (${plural(tally.responses, 'resposta', 'respostas')} até agora): dá pra ordenar cada cargo por ele.`;
-  } else if (tally && !tally.open) {
-    const when = new Date(tally.opens_at).toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
-    });
-    note.textContent = `O placar das mais escolhidas abre em ${when}.`;
-  } else if (tally) {
-    note.textContent = `O placar das mais escolhidas abre quando o levantamento tiver ${plural(tally.min_responses, 'resposta', 'respostas')}.`;
-  }
+  renderLeaderboard();
   $('intro-resubmit').hidden = !state.sent;
 }
 
@@ -1078,7 +1100,7 @@ function bindEvents() {
     const deck = state.decks.get(state.currentRoute);
     if (mini && deck) toggleChoice(deck, mini.dataset.sq);
   });
-  for (const id of ['bottombar-middle', 'summary']) {
+  for (const id of ['bottombar-middle', 'summary', 'intro-leaderboard']) {
     $(id).addEventListener('error', (ev) => ev.target.tagName === 'IMG' && replaceWithInitials(ev.target), true);
   }
   $('submit-form').addEventListener('submit', submitResponse);

@@ -231,13 +231,16 @@ main {
   margin: 0 0 20px;
   padding: 0;
 }
-.steps li {
+/* ">" de propósito: só os <li> DIRETOS do <ol> viram círculo numerado.
+   Um <ul> aninhado (sub-detalhes de um passo) tem sua própria regra logo
+   abaixo — bolinha lisa, sem número, sem herdar isto. */
+.steps > li {
   counter-increment: step;
   position: relative;
   padding: 10px 0 10px 44px;
   border-top: 1px solid var(--hairline);
 }
-.steps li::before {
+.steps > li::before {
   content: counter(step);
   position: absolute;
   left: 0;
@@ -251,9 +254,83 @@ main {
   color: var(--ink);
   box-shadow: inset 0 0 0 3px var(--c, var(--f0));
 }
-.steps li:nth-child(2)::before { --c: var(--f4); }
-.steps li:nth-child(3)::before { --c: var(--f9); }
-.steps li:nth-child(4)::before { --c: var(--f13); }
+.steps > li:nth-child(2)::before { --c: var(--f4); }
+.steps > li:nth-child(3)::before { --c: var(--f9); }
+.steps > li:nth-child(4)::before { --c: var(--f13); }
+
+.steps ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.steps ul li {
+  position: relative;
+  padding: 4px 0 4px 20px;
+  font-size: 0.92rem;
+  color: var(--ink-2);
+}
+.steps ul li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+/* ------------------------------------------------------------ placar (início) */
+
+.leaderboard { margin: 20px 0 4px; }
+.leaderboard h2 { font-size: 1.1rem; margin: 0 0 10px; }
+.leaderboard-office { margin: 0 0 14px; }
+.leaderboard-office:last-child { margin-bottom: 0; }
+.leaderboard-title {
+  margin: 0 0 6px;
+  font: 600 0.78rem/1.3 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 -16px;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.leaderboard-row::-webkit-scrollbar { display: none; }
+.leaderboard-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+.leaderboard-photo {
+  flex: none;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--no-photo, var(--surface-2));
+  color: #fff;
+  font: 700 0.62rem/1 var(--mono);
+}
+.leaderboard-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.leaderboard-photo.no-photo { display: grid; place-items: center; }
+.leaderboard-text b { font: 700 0.8rem/1 var(--mono); }
+.leaderboard-text small { color: var(--ink-2); }
+.leaderboard-text strong { color: var(--ink); }
+.leaderboard-sep { flex: none; color: var(--border); }
 
 .note {
   background: var(--surface);

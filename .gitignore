@@ -235,3 +235,4 @@ lib/*
 /share/
 # build local do wrangler (cloudflare/)
 .wrangler/
+.vscode/
