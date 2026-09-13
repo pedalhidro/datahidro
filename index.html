@@ -52,7 +52,7 @@
       <p class="eyebrow">Levantamento Pedal Hidrográfico</p>
       <h1>Candidatas às eleições de 2026 em São Paulo</h1>
       <p class="lead">
-        Bem vindas ao datahidro 2026! A pesquisa eleitoral divertida da comunidade!
+        Bem vindas ao datahidro 2026! A enquete divertida da comunidade!
 
       </p>
       <ol class="steps">
@@ -127,8 +127,11 @@
       <div class="actions">
         <label class="btn btn-secondary" for="badge-file">Escolher foto</label>
         <input id="badge-file" class="visually-hidden" type="file" accept="image/*">
-        <button type="button" class="btn btn-primary" id="badge-share" disabled hidden>Salvar no álbum</button>
-        <button type="button" class="btn btn-secondary" id="badge-download" disabled>Baixar arquivo</button>
+        <button type="button" class="btn btn-primary" id="badge-save" disabled hidden>Salvar no álbum</button>
+        <div class="actions-pair">
+          <button type="button" class="btn btn-secondary" id="badge-download" disabled>Baixar arquivo</button>
+          <button type="button" class="btn btn-secondary" id="badge-share" disabled>Compartilhar</button>
+        </div>
       </div>
       <p class="hint" id="badge-save-hint" hidden>No menu que abrir, toque na opção de salvar a imagem (no iPhone,
         “Salvar Imagem”) — ela vai direto pro álbum de fotos, sem passar pelos Arquivos.</p>
@@ -143,8 +146,11 @@
           </div>
           <figcaption>Seu selo</figcaption>
           <div class="actions">
-            <button type="button" class="btn btn-primary" id="story-share" disabled hidden>Salvar no álbum</button>
-            <button type="button" class="btn btn-secondary" id="story-download" disabled>Baixar arquivo</button>
+            <button type="button" class="btn btn-primary" id="story-save" disabled hidden>Salvar no álbum</button>
+            <div class="actions-pair">
+              <button type="button" class="btn btn-secondary" id="story-download" disabled>Baixar arquivo</button>
+              <button type="button" class="btn btn-secondary" id="story-share" disabled>Compartilhar</button>
+            </div>
           </div>
         </figure>
         <figure class="story" id="board-story" hidden>
@@ -154,8 +160,11 @@
           </div>
           <figcaption>Quem está na frente</figcaption>
           <div class="actions">
-            <button type="button" class="btn btn-primary" id="board-story-share" hidden>Salvar no álbum</button>
-            <button type="button" class="btn btn-secondary" id="board-story-download">Baixar arquivo</button>
+            <button type="button" class="btn btn-primary" id="board-story-save" hidden>Salvar no álbum</button>
+            <div class="actions-pair">
+              <button type="button" class="btn btn-secondary" id="board-story-download">Baixar arquivo</button>
+              <button type="button" class="btn btn-secondary" id="board-story-share">Compartilhar</button>
+            </div>
           </div>
         </figure>
       </div>
@@ -163,7 +172,7 @@
       <h2>Chame mais gente</h2>
       <p>Quanto mais gente responder, mais o levantamento diz sobre a nossa comunidade.</p>
       <div class="actions">
-        <button type="button" class="btn btn-secondary" id="btn-invite">Compartilhar o datahidro</button>
+        <button type="button" class="btn btn-secondary" id="btn-copy-link">Copiar link do datahidro 2026</button>
       </div>
     </section>
   </main>

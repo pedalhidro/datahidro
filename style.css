@@ -750,7 +750,8 @@ main {
   text-transform: uppercase;
   color: var(--muted);
 }
-.story .actions { flex-direction: column; align-items: center; gap: 8px; margin: 8px 0 0; }
+.story .actions { gap: 8px; margin: 8px 0 0; }
+.story .actions .btn { padding-inline: 16px; } /* no desktop, o par cabe lado a lado com folga na coluna de 316px */
 .badge-story {
   width: min(100%, 220px);
   margin: 0 auto;
@@ -777,6 +778,9 @@ main {
 .zoom input { flex: 1; accent-color: var(--deck); }
 
 .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 12px 0; }
+/* "Baixar arquivo" + "Compartilhar" andam juntos: lado a lado quando cabem,
+   um embaixo do outro numa coluna estreita (Stories no celular) */
+.actions-pair { display: flex; flex-wrap: wrap; justify-content: center; gap: inherit; }
 .actions:has(.visually-hidden:focus-visible) label.btn { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* ------------------------------------------------------------ toast */

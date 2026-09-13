@@ -811,25 +811,15 @@ async function submitResponse(ev) {
   }
 }
 
-async function invite() {
-  const data = {
-    title: 'datahidro 2026',
-    text: 'Levantamento Pedal Hidrográfico de candidatas às eleições de 2026 em São Paulo. Participe:',
-    url: `${location.origin}/`,
-  };
-  if (navigator.share) {
-    try {
-      await navigator.share(data);
-    } catch {
-      /* cancelado */
-    }
-    return;
-  }
+// "Copiar link do datahidro 2026": só copia — abrir o menu do sistema é com o
+// "Compartilhar" de cada imagem.
+async function copySiteLink() {
+  const url = `${location.origin}/`;
   try {
-    await navigator.clipboard.writeText(data.url);
+    await navigator.clipboard.writeText(url);
     toast('Link copiado!');
   } catch {
-    toast(data.url, 6000);
+    toast(url, 6000);
   }
 }
 
@@ -1141,7 +1131,7 @@ async function drawBoardStory() {
   ctx.fillText('pesquisa.pedalhidrografi.co', W / 2, 1780);
 
   $('board-story').hidden = false;
-  setSaveButtons('board-story-share', 'board-story-download');
+  setSaveButtons('board-story');
 }
 
 function scheduleDraw() {
@@ -1175,18 +1165,22 @@ async function pickPhoto(file) {
   // Share: o <a download> do Safari em iOS não tem acesso ao álbum, só aos
   // Arquivos. Onde o navegador suporta, "Salvar no álbum" vira a ação
   // primária; sem suporte, "Baixar arquivo" assume o lugar (única opção).
-  setSaveButtons('story-share', 'story-download');
-  $('badge-save-hint').hidden = !setSaveButtons('badge-share', 'badge-download');
+  setSaveButtons('story');
+  $('badge-save-hint').hidden = !setSaveButtons('badge');
   await prepareBadge();
 }
 
-function setSaveButtons(shareId, downloadId) {
+// Botões de uma imagem: #<prefix>-save|download|share (prefix = id do canvas
+// sem o "-canvas"). "Salvar no álbum" só aparece com Web Share de arquivo; sem
+// ele, "Baixar arquivo" vira a ação primária. "Compartilhar" aparece sempre.
+function setSaveButtons(prefix) {
   const canShare = canShareFiles();
-  const shareBtn = $(shareId);
-  const downloadBtn = $(downloadId);
-  shareBtn.hidden = !canShare;
-  shareBtn.disabled = false;
+  const saveBtn = $(`${prefix}-save`);
+  const downloadBtn = $(`${prefix}-download`);
+  saveBtn.hidden = !canShare;
+  saveBtn.disabled = false;
   downloadBtn.disabled = false;
+  $(`${prefix}-share`).disabled = false;
   downloadBtn.classList.toggle('btn-primary', !canShare);
   downloadBtn.classList.toggle('btn-secondary', canShare);
   return canShare;
@@ -1219,16 +1213,42 @@ async function downloadImage(canvas, filename) {
   setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
 }
 
-// navigator.share com um único arquivo de imagem: o menu que abre tem
-// "Salvar Imagem" (iOS) — vai direto pro álbum de fotos, ao contrário do
+// "Salvar no álbum": navigator.share SÓ com o arquivo — o menu que abre tem
+// "Salvar Imagem" (iOS), que vai direto pro álbum de fotos, ao contrário do
 // <a download>, que no Safari cai nos Arquivos (motivo de existir esta função).
-async function shareImage(canvas, filename, text = 'eu participei do datahidro 2026 · pesquisa.pedalhidrografi.co') {
+async function saveToPhotos(canvas, filename) {
   const file = new File([await canvasBlob(canvas)], filename, { type: 'image/jpeg' });
   try {
-    await navigator.share({ files: [file], title: 'datahidro 2026', text });
+    await navigator.share({ files: [file] });
   } catch {
     /* cancelado */
   }
+}
+
+// "Compartilhar": o menu do sistema com a imagem + convite (Instagram,
+// WhatsApp…). Sem Web Share de arquivo (ex.: Chrome e Firefox no Linux), copia
+// a imagem pra colar onde quiser; sem isso também, copia o link.
+async function shareImage(canvas, filename, text) {
+  if (canShareFiles()) {
+    const file = new File([await canvasBlob(canvas)], filename, { type: 'image/jpeg' });
+    try {
+      await navigator.share({ files: [file], title: 'datahidro 2026', text });
+    } catch {
+      /* cancelado */
+    }
+    return;
+  }
+  if (navigator.clipboard?.write && window.ClipboardItem) {
+    try {
+      const png = new Promise((resolve) => canvas.toBlob(resolve, 'image/png')); // área de transferência só aceita PNG
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      toast('Imagem copiada — é só colar onde quiser compartilhar.');
+      return;
+    } catch {
+      /* sem imagem na área de transferência: vai o link */
+    }
+  }
+  await copySiteLink();
 }
 
 function bindBadge() {
@@ -1283,16 +1303,17 @@ function bindBadge() {
     },
     { passive: false }
   );
-  $('badge-download').addEventListener('click', () => downloadImage($('badge-canvas'), 'selo-datahidro-2026.jpg'));
-  $('badge-share').addEventListener('click', () => shareImage($('badge-canvas'), 'selo-datahidro-2026.jpg'));
-  $('story-download').addEventListener('click', () => downloadImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
-  $('story-share').addEventListener('click', () => shareImage($('story-canvas'), 'selo-datahidro-2026-story.jpg'));
-  $('board-story-download').addEventListener('click', () =>
-    downloadImage($('board-story-canvas'), 'placar-datahidro-2026-story.jpg')
-  );
-  $('board-story-share').addEventListener('click', () =>
-    shareImage($('board-story-canvas'), 'placar-datahidro-2026-story.jpg', 'quem está na frente no datahidro 2026 · pesquisa.pedalhidrografi.co')
-  );
+  const seloText = 'eu participei do datahidro 2026 · pesquisa.pedalhidrografi.co';
+  for (const [prefix, filename, text] of [
+    ['badge', 'selo-datahidro-2026.jpg', seloText],
+    ['story', 'selo-datahidro-2026-story.jpg', seloText],
+    ['board-story', 'placar-datahidro-2026-story.jpg', 'quem está na frente no datahidro 2026 · pesquisa.pedalhidrografi.co'],
+  ]) {
+    const image = $(`${prefix}-canvas`);
+    $(`${prefix}-save`).addEventListener('click', () => saveToPhotos(image, filename));
+    $(`${prefix}-download`).addEventListener('click', () => downloadImage(image, filename));
+    $(`${prefix}-share`).addEventListener('click', () => shareImage(image, filename, text));
+  }
 }
 
 // ===================== início do app =====================
@@ -1313,7 +1334,7 @@ function bindEvents() {
     if ($('consent').checked) $('consent').closest('.consent').classList.remove('missing');
     saveDraft();
   });
-  $('btn-invite').addEventListener('click', invite);
+  $('btn-copy-link').addEventListener('click', copySiteLink);
   bindBadge();
 }
 

@@ -70,11 +70,14 @@ aqui. Este arquivo guarda só os invariantes deste repo.
   `style=""` inline e scripts externos: cor dinâmica via `style.setProperty`.
   `drawBadgeArt(ctx, size)` desenha o anel em qualquer tamanho; o selo
   quadrado e o Story (1080×1920, `drawStoryBadge`) chamam a mesma função —
-  não duplicar a arte do anel entre os dois formatos. Salvar direto no
-  álbum de fotos (não em Arquivos) só existe via `navigator.share`
-  (`shareImage`); `downloadImage`/`<a download>` é o único caminho sem
-  suporte a Web Share, e por isso vira a ação primária nesse caso
-  (`pickPhoto` troca `btn-primary`/`btn-secondary` dinamicamente).
+  não duplicar a arte do anel entre os dois formatos. Cada imagem tem
+  "Salvar no álbum" (`saveToPhotos`: `navigator.share` só com o arquivo, o
+  único jeito de ir pro álbum de fotos do iPhone e não pros Arquivos; só
+  aparece com Web Share de arquivo), "Baixar arquivo" (`downloadImage`,
+  primária quando não há Web Share) e, à direita dela, "Compartilhar"
+  (`shareImage`: menu do sistema com imagem + convite; sem Web Share de
+  arquivo, copia a imagem ou, em último caso, o link). `setSaveButtons(prefix)`
+  liga os três de cada imagem.
 - **Idioma**: UI, comentários e docs em português; identificadores (JS,
   Python, classes CSS, chaves JSON, API, env vars) em inglês. Rotas de hash
   (`#/deputadas-estaduais`) são texto de interface e ficam em português.
